@@ -1,7 +1,8 @@
 import { models } from "@/lib/ai/models";
 import { SYSTEM_PROMPT } from "@/lib/ai/prompts";
+import { calculatorTool, searchTool, weatherTool } from "@/lib/ai/tools";
 import { chatRequestSchema } from "@/types/chat";
-import { type UIMessagePart, UIDataTypes, type UITools, convertToModelMessages, streamText } from "ai";
+import { convertToModelMessages, stepCountIs, streamText } from "ai";
 import { z } from 'zod';
 
 
@@ -21,6 +22,12 @@ export async function POST(req: Request) {
 
         const result = streamText({
             model: models[model],
+            tools: {
+                weather: weatherTool,
+                search: searchTool,
+                calculator: calculatorTool,
+            },
+            stopWhen: stepCountIs(5),
             messages: await convertToModelMessages(messages),
             system: SYSTEM_PROMPT,
             temperature,
