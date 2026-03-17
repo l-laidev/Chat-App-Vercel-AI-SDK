@@ -1,6 +1,8 @@
+import { Task } from "@/types/chat";
 import { useState } from "react";
+import z from "zod";
 
-export function ChatInput({ sendMessage, selectedModel, status }: { sendMessage: Function, selectedModel: string, status: string }) {
+export function ChatInput({ sendMessage, selectedModel, status, task }: { sendMessage: Function, selectedModel: string, status: string, task: z.infer<typeof Task> }) {
     const [input, setInput] = useState('');
 
     return <form onSubmit={(e) => {
@@ -10,6 +12,7 @@ export function ChatInput({ sendMessage, selectedModel, status }: { sendMessage:
             metadata: {
                 model: selectedModel,
                 temperature: 0.7,
+                task: task,
             }
         });
         setInput('');
