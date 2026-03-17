@@ -10,17 +10,19 @@ export const maxDuration = 30;
 const chatRequestSchema = z.object({
     messages: z.array(z.object({
         role: z.enum(['user', 'assistant', 'system']),
-        text: z.string(),
         parts: z.array(z.custom<UIMessagePart<UIDataTypes, UITools>>()),
+        metadata: z.object({
+            model: z.enum(['gemini-2.5-flash-lite', 'gemini-2.5-flash']).default('gemini-2.5-flash'),
+            temperature: z.number().min(0).max(2).default(0.7),
+        })
     })),
-    model: z.enum(['gemini-2.5-flash-lite', 'gemini-2.5-flash']).default('gemini-2.5-flash'),
-    temperature: z.number().min(0).max(2).default(0.7),
 });
 
 export async function POST(req:Request) {
     try {
         const body = await req.json();
-        const { messages, model, temperature } = chatRequestSchema.parse(body);
+        const { messages } = chatRequestSchema.parse(body);
+        const { model, temperature } = messages[messages.length-1].metadata;
         
         const result = streamText({
             model: models[model],
