@@ -4,7 +4,7 @@ import { calculatorTool, searchTool, weatherTool } from "@/lib/ai/tools";
 import { getCache, setCache } from "@/lib/cache";
 import { rateLimiter } from "@/lib/rate-limit";
 import { chatRequestSchema, sentimentSchema } from "@/types/chat";
-import { convertToModelMessages, Output, simulateReadableStream, stepCountIs, streamText } from "ai";
+import { AISDKError, APICallError, convertToModelMessages, LoadAPIKeyError, Output, RetryError, simulateReadableStream, stepCountIs, streamText } from "ai";
 import { z } from 'zod';
 
 
@@ -118,14 +118,30 @@ export async function POST(req: Request) {
 
     } catch (error) {
         if (error instanceof z.ZodError) {
-            return new Response(JSON.stringify({ error: 'Invalid request', details: error.issues }), {
+            return new Response(JSON.stringify({ error: 'Invalid Request', details: error.issues }), {
                 status: 400,
                 headers: { 'Content-Type': 'application/json' },
             });
         }
 
-        console.error("Chat API Error:", error);
-        return new Response(JSON.stringify({ error: 'Internal server error' }), {
+        if (error instanceof AISDKError) {
+            console.error(`Error type: ${typeof error}`);
+            console.error(`Chat API Error "${error.name}": ${error.message}`);
+            switch (typeof error) {
+                case typeof APICallError:
+                case typeof RetryError:
+                    return new Response(JSON.stringify({ error: "Rate Limit Exceeded", message: "Please wait a moment before trying again.", retryAfter: 60 }),
+                        { status: 429 })
+                case typeof LoadAPIKeyError:
+                    return new Response(JSON.stringify({ error: "Configuration Error", message: "AI Service temporarilty unavailable." }),
+                        { status: 503 })
+                default:
+                    return new Response(JSON.stringify({ error: "AI Error", message: error.message }),
+                        { status: 500 })
+            }
+        }
+
+        return new Response(JSON.stringify({ error: 'Internal Server Rrror' }), {
             status: 500,
             headers: { 'Content-Type': 'application/json' },
         });
