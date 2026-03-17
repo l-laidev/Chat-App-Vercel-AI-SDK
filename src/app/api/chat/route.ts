@@ -39,6 +39,17 @@ export async function POST(req:Request) {
         return result.toUIMessageStreamResponse();
 
     } catch (error) {
-        
+        if (error instanceof z.ZodError) {
+            return new Response(JSON.stringify({error: 'Invalid request', details: error.issues}), {
+                status: 400,
+                headers: {'Content-Type': 'application/json'},
+            });
+        }
+
+        console.error("Chat API Error:", error);
+        return new Response(JSON.stringify({error: 'Internal server error'}), {
+            status: 500,
+            headers: {'Content-Type': 'application/json'},
+        });
     }
 }
