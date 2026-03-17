@@ -12,7 +12,7 @@ export default function ChatPage() {
 
   const { messages, status, sendMessage, error, stop, setMessages } = useChat({
     generateId: () => crypto.randomUUID(),
-    
+
     onFinish: (msg) => {
       console.log('Message done: ', msg.message.id);
     },
@@ -25,7 +25,7 @@ export default function ChatPage() {
     setMessages([]);
   }, [setMessages]);
 
-  
+
 
   return (
     <div className="flex flex-col h-screen max-w-3xl mx-auto">
@@ -68,10 +68,12 @@ export default function ChatPage() {
               {['Explain React Server Components', 'Debug my code', 'Write a function'].map((prompt, index) => (
                 <button
                   key={index}
-                  onClick={() => sendMessage({text: prompt, metadata: {
-                    temperature: 0.7,
-                    model: 'gemini-2.5-flash-lite',
-                  }})}
+                  onClick={() => sendMessage({
+                    text: prompt, metadata: {
+                      temperature: 0.7,
+                      model: 'gemini-2.5-flash-lite',
+                    }
+                  })}
                   className="px-4 py-2 bg-sky-400 rounded-full hover:bg-gray-200 text-sm text-indigo-900 hover:cursor-pointer"
                 >{prompt}</button>
               ))}
@@ -79,8 +81,8 @@ export default function ChatPage() {
           </div>
         )}
 
-        <ChatContainer 
-          messages={messages} 
+        <ChatContainer
+          messages={messages}
           status={status}
           sendMessage={sendMessage}
           error={error}
