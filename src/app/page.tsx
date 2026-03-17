@@ -1,11 +1,14 @@
 'use client';
 
 import { ChatContainer } from "@/components/chat/ChatContainer";
+import { Task } from "@/types/chat";
 import { useChat } from "@ai-sdk/react";
 import { useCallback, useState } from "react";
+import z from "zod";
 
 export default function ChatPage() {
   const [selectedModel, setSelectedModel] = useState('gemini-2.5-flash-lite');
+  const [task, setTask] = useState<z.infer<typeof Task>>('chat');
 
   const { messages, status, sendMessage, error, stop, setMessages } = useChat({
     generateId: () => crypto.randomUUID(),
@@ -31,6 +34,17 @@ export default function ChatPage() {
         <h1 className="text-xl font-bold">AI Chat</h1>
         <div className="flex items-center gap-2">
           <select
+            value={task}
+            onChange={(e) => {
+              setTask(Task.parse(e.target.value));
+            }}
+            className="p-2 border rounded"
+          >
+            <option value="chat">Conversation</option>
+            <option value="sentiment">Sentiment Analysis</option>
+          </select>
+
+          <select
             value={selectedModel}
             onChange={(e) => setSelectedModel(e.target.value)}
             className="p-2 border rounded"
@@ -38,6 +52,7 @@ export default function ChatPage() {
             <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite</option>
             <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
           </select>
+
           <button type="button" onClick={clearChat} className="p-2 text-gray-500 hover:text-gray-700 hover:cursor-p">
             Clear
           </button>
@@ -71,6 +86,7 @@ export default function ChatPage() {
           error={error}
           stop={stop}
           selectedModel={selectedModel}
+          task={task}
         />
       </div>
     </div>
