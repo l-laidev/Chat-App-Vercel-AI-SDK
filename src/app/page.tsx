@@ -33,6 +33,10 @@ export default function ChatPage() {
         sendMessage({
           // role: 'user',
           text: input,
+          metadata: {
+            temperature: 0.7,
+            model: 'gemini-2.5-flash-lite',
+          }
         });
         setInput('');
       }} className="flex gap-2 pt-4">
