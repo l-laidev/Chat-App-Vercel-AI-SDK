@@ -12,6 +12,8 @@
     "@ai-sdk/google": "^3.0.43",
     "@ai-sdk/react": "^3.0.118",
     "@radix-ui/react-scroll-area": "^1.2.10",
+    "@upstash/ratelimit": "^2.0.8",
+    "@upstash/redis": "^1.37.0",
     "ai": "^6.0.116",
     "lucide-react": "^0.577.0",
     "next": "16.1.7",
