@@ -11,10 +11,10 @@ const chatRequestSchema = z.object({
     messages: z.array(z.object({
         role: z.enum(['user', 'assistant', 'system']),
         parts: z.array(z.custom<UIMessagePart<UIDataTypes, UITools>>()),
-        metadata: z.object({
+        metadata: z.optional(z.object({
             model: z.enum(['gemini-2.5-flash-lite', 'gemini-2.5-flash']).default('gemini-2.5-flash'),
             temperature: z.number().min(0).max(2).default(0.7),
-        })
+        }))
     })),
 });
 
@@ -22,7 +22,12 @@ export async function POST(req:Request) {
     try {
         const body = await req.json();
         const { messages } = chatRequestSchema.parse(body);
-        const { model, temperature } = messages[messages.length-1].metadata;
+        const lastMessage = messages[messages.length-1];
+        let model: 'gemini-2.5-flash-lite'| 'gemini-2.5-flash' = "gemini-2.5-flash-lite";
+        let temperature = 0.7;
+        if (lastMessage.metadata) {
+            ({ model, temperature } = lastMessage.metadata);
+        }
         
         const result = streamText({
             model: models[model],
