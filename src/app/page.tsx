@@ -1,11 +1,11 @@
 'use client';
 
-import { UIMessage, useChat, useCompletion } from "@ai-sdk/react";
-import { useCallback, useEffect, useState } from "react";
+import { ChatContainer } from "@/components/chat/ChatContainer";
+import { useChat } from "@ai-sdk/react";
+import { useCallback, useState } from "react";
 
 export default function ChatPage() {
   const [selectedModel, setSelectedModel] = useState('gemini-2.5-flash-lite');
-  const [ input, setInput ] = useState('');
 
   const { messages, status, sendMessage, error, stop, setMessages } = useChat({
     generateId: () => crypto.randomUUID(),
@@ -22,11 +22,7 @@ export default function ChatPage() {
     setMessages([]);
   }, [setMessages]);
 
-  const retryLast = useCallback(() => {
-    if(messages.length >= 2) {
-      sendMessage()
-    }
-  }, [messages, sendMessage])
+  
 
   return (
     <div className="flex flex-col h-screen max-w-3xl mx-auto">
@@ -68,70 +64,14 @@ export default function ChatPage() {
           </div>
         )}
 
-        {/* all messages */}
-        {messages.map((message) => <MessageBubble key={message.id} message={message} />)}
-
-        {status != 'ready' && status != 'error' && (
-          <div className="flex items-center gap-2 text-gray-500">
-            <div className="animate-pulse">●</div>
-            <span>AI is thinking...</span>
-            <button onClick={stop} className="text-red-500 text-sm">Stop</button>
-          </div>
-        )}
-
-        {status == 'error' && (
-          <div className="p-4 bg-red-50 text-red-600 rounded-lg">
-            <p>Error: {error?.message}</p>
-            <button onClick={retryLast} className="text-sm underline">Retry</button>
-          </div>
-        )}
-
-        <form onSubmit={(e) => {
-          e.preventDefault();
-          sendMessage({
-            text: input,
-            metadata: {
-              model: selectedModel,
-              temperature: 0.7,
-            }
-          });
-          setInput('');
-        }} className="p-4 border-t">
-          <div className="flex gap-2">
-            <input 
-              value={input}
-              onChange={(e) => {
-                setInput(e.target.value);
-              }}
-              placeholder="Type your message..."
-              className="flex-1 p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              disabled={status != 'ready'}
-            />
-            <button 
-            type="submit"
-            disabled={status != 'ready' || !input.trim()}
-            className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 transition-colors"
-            >Send</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  )
-}
-
-function MessageBubble({message}: {message: UIMessage}) {
-  const isUser = message.role == 'user';
-
-  return (
-    <div className={`flex ${isUser? 'justify-end' : 'justify-start'}`}>
-      <div className={`max-w-[80%] p-4 rounded-2xl ${
-        isUser
-        ? 'bg-blue-500 text-white rounded-br-md'
-        : 'bg-gray-100 text-gray-900 rounded-bl-md'
-      }`}>
-        {message.parts.map((part, index) => (
-          <p key={index} className="whitespace-pre-wrap">{part.type =='text' && part.text}</p>
-        ))}
+        <ChatContainer 
+          messages={messages} 
+          status={status}
+          sendMessage={sendMessage}
+          error={error}
+          stop={stop}
+          selectedModel={selectedModel}
+        />
       </div>
     </div>
   )
