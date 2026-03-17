@@ -1,9 +1,10 @@
 import { models } from "@/lib/ai/models";
 import { SYSTEM_PROMPT } from "@/lib/ai/prompts";
 import { calculatorTool, searchTool, weatherTool } from "@/lib/ai/tools";
+import { getCache, setCache } from "@/lib/cache";
 import { rateLimiter } from "@/lib/rate-limit";
 import { chatRequestSchema, sentimentSchema } from "@/types/chat";
-import { convertToModelMessages, Output, stepCountIs, streamText } from "ai";
+import { convertToModelMessages, Output, simulateReadableStream, stepCountIs, streamText } from "ai";
 import { z } from 'zod';
 
 
@@ -28,7 +29,7 @@ async function checkRateLimit(req: Request) {
     const ip = req.headers.get('x-forward-for') ?? 'anonymous';
     const { success, limit, reset, remaining } = await rateLimiter.limit(ip);
 
-    if(!success) {
+    if (!success) {
         return new Response('Rate limit exceeded', {
             status: 429,
             headers: {
@@ -42,19 +43,55 @@ async function checkRateLimit(req: Request) {
     return null;
 }
 
+function responseFromCached(cached: string, numMessages: number) {
+    return new Response(
+        simulateReadableStream({
+            initialDelayInMs: 1000,
+            chunkDelayInMs: 300,
+            chunks: [
+                `data: {"type":"start","messageId":"cached-msg-${numMessages}"}\n\n`,
+                `data: {"type":"text-start","id":"text-1"}\n\n`,
+                `data: {"type":"text-delta","id":"text-1","delta":"${cached}"}\n\n`,
+                `data: {"type":"text-end","id":"text-1"}\n\n`,
+                `data: {"type":"finish"}\n\n`,
+                `data: [DONE]\n\n`,
+            ]
+        }).pipeThrough(new TextEncoderStream()),
+        {
+            status: 200,
+            headers: {
+                'Content-Type': 'text/event-stream',
+                'Cache-Control': 'no-cache',
+                Connection: 'keep-alive',
+                'x-vercel-ai-ui-message-stream': 'v1',
+            }
+        }
+    );
+}
+
 export async function POST(req: Request) {
     try {
         const rateCheck = await checkRateLimit(req);
-        if(rateCheck != null) {
+        if (rateCheck != null) {
             return rateCheck;
         }
 
         const body = await req.json();
         const { messages, model, temperature, task } = parseBody(body);
 
+        const lastMessagePart = messages.at(-1)?.parts.at(-1);
+
+        if (lastMessagePart?.type == 'text') {
+            const cached = await getCache(lastMessagePart.text);
+            if (cached) {
+                return responseFromCached(cached, messages.length);
+            }
+        }
+        console.log('Generating text...');
+
         const result = streamText({
             model: models[model],
-            tools: task == 'sentiment'? undefined : {
+            tools: task == 'sentiment' ? undefined : {
                 weather: weatherTool,
                 search: searchTool,
                 calculator: calculatorTool,
@@ -69,8 +106,12 @@ export async function POST(req: Request) {
             // analytics
             onFinish: async ({ text, usage }) => {
                 console.log(`Complete: ${usage.totalTokens} tokens.`)
+
+                if (lastMessagePart?.type == 'text') {
+                    await setCache(lastMessagePart.text, text);
+                }
             },
-            output: task == "chat"? Output.text() : Output.object({ schema: sentimentSchema }),
+            output: task == "chat" ? Output.text() : Output.object({ schema: sentimentSchema }),
         })
 
         return result.toUIMessageStreamResponse();
