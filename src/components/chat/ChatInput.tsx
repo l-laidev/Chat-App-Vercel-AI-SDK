@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-export function ChatInput({ sendMessage, selectedModel }: { sendMessage: Function, selectedModel: string }) {
+export function ChatInput({ sendMessage, selectedModel, status }: { sendMessage: Function, selectedModel: string, status: string }) {
     const [input, setInput] = useState('');
 
     return <form onSubmit={(e) => {

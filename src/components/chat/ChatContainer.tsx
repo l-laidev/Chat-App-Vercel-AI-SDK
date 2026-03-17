@@ -20,6 +20,6 @@ export function ChatContainer({ messages, status, sendMessage, error, stop, sele
             stop={stop}
             error={error}
         />
-        <ChatInput sendMessage={sendMessage} selectedModel={selectedModel} />
+        <ChatInput sendMessage={sendMessage} selectedModel={selectedModel} status={status} />
     </div>
 }
