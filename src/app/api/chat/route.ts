@@ -1,5 +1,6 @@
 import { models } from "@/lib/ai/models";
 import { SYSTEM_PROMPT } from "@/lib/ai/prompts";
+import { chatRequestSchema } from "@/types/chat";
 import { type UIMessagePart, UIDataTypes, type UITools, convertToModelMessages, streamText } from "ai";
 import { z } from 'zod';
 
@@ -7,28 +8,17 @@ import { z } from 'zod';
 export const runtime = 'edge';  // lower latency
 export const maxDuration = 30;
 
-const chatRequestSchema = z.object({
-    messages: z.array(z.object({
-        role: z.enum(['user', 'assistant', 'system']),
-        parts: z.array(z.custom<UIMessagePart<UIDataTypes, UITools>>()),
-        metadata: z.optional(z.object({
-            model: z.enum(['gemini-2.5-flash-lite', 'gemini-2.5-flash']).default('gemini-2.5-flash'),
-            temperature: z.number().min(0).max(2).default(0.7),
-        }))
-    })),
-});
-
-export async function POST(req:Request) {
+export async function POST(req: Request) {
     try {
         const body = await req.json();
         const { messages } = chatRequestSchema.parse(body);
-        const lastMessage = messages[messages.length-1];
-        let model: 'gemini-2.5-flash-lite'| 'gemini-2.5-flash' = "gemini-2.5-flash-lite";
+        const lastMessage = messages[messages.length - 1];
+        let model: 'gemini-2.5-flash-lite' | 'gemini-2.5-flash' = "gemini-2.5-flash-lite";
         let temperature = 0.7;
         if (lastMessage.metadata) {
             ({ model, temperature } = lastMessage.metadata);
         }
-        
+
         const result = streamText({
             model: models[model],
             messages: await convertToModelMessages(messages),
@@ -38,7 +28,7 @@ export async function POST(req:Request) {
             // signal for client disconnection
             abortSignal: req.signal,
             // analytics
-            onFinish: async ({text, usage}) => {
+            onFinish: async ({ text, usage }) => {
                 console.log(`Complete: ${usage.totalTokens} tokens.`)
             }
         })
@@ -47,16 +37,16 @@ export async function POST(req:Request) {
 
     } catch (error) {
         if (error instanceof z.ZodError) {
-            return new Response(JSON.stringify({error: 'Invalid request', details: error.issues}), {
+            return new Response(JSON.stringify({ error: 'Invalid request', details: error.issues }), {
                 status: 400,
-                headers: {'Content-Type': 'application/json'},
+                headers: { 'Content-Type': 'application/json' },
             });
         }
 
         console.error("Chat API Error:", error);
-        return new Response(JSON.stringify({error: 'Internal server error'}), {
+        return new Response(JSON.stringify({ error: 'Internal server error' }), {
             status: 500,
-            headers: {'Content-Type': 'application/json'},
+            headers: { 'Content-Type': 'application/json' },
         });
     }
 }
