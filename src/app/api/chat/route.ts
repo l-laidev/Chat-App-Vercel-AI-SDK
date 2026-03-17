@@ -1,28 +1,37 @@
 import { models } from "@/lib/ai/models";
 import { SYSTEM_PROMPT } from "@/lib/ai/prompts";
 import { calculatorTool, searchTool, weatherTool } from "@/lib/ai/tools";
-import { chatRequestSchema } from "@/types/chat";
-import { convertToModelMessages, stepCountIs, streamText } from "ai";
+import { chatRequestSchema, sentimentSchema } from "@/types/chat";
+import { convertToModelMessages, Output, stepCountIs, streamText } from "ai";
 import { z } from 'zod';
 
 
 export const runtime = 'edge';  // lower latency
 export const maxDuration = 30;
 
+
+function parseBody(body: any) {
+    const { messages } = chatRequestSchema.parse(body);
+    const lastMessage = messages[messages.length - 1];
+    let model: 'gemini-2.5-flash-lite' | 'gemini-2.5-flash' = "gemini-2.5-flash-lite";
+    let temperature = 0.7;
+    let task: 'chat' | 'sentiment' = 'chat';
+    if (lastMessage.metadata) {
+        ({ model, temperature, task } = lastMessage.metadata);
+    }
+
+    return { messages, model, temperature, task };
+}
+
+
 export async function POST(req: Request) {
     try {
         const body = await req.json();
-        const { messages } = chatRequestSchema.parse(body);
-        const lastMessage = messages[messages.length - 1];
-        let model: 'gemini-2.5-flash-lite' | 'gemini-2.5-flash' = "gemini-2.5-flash-lite";
-        let temperature = 0.7;
-        if (lastMessage.metadata) {
-            ({ model, temperature } = lastMessage.metadata);
-        }
+        const { messages, model, temperature, task } = parseBody(body);
 
         const result = streamText({
             model: models[model],
-            tools: {
+            tools: task == 'sentiment'? undefined : {
                 weather: weatherTool,
                 search: searchTool,
                 calculator: calculatorTool,
@@ -37,7 +46,8 @@ export async function POST(req: Request) {
             // analytics
             onFinish: async ({ text, usage }) => {
                 console.log(`Complete: ${usage.totalTokens} tokens.`)
-            }
+            },
+            output: task == "chat"? Output.text() : Output.object({ schema: sentimentSchema }),
         })
 
         return result.toUIMessageStreamResponse();
