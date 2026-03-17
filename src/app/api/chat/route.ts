@@ -1,6 +1,7 @@
 import { models } from "@/lib/ai/models";
 import { SYSTEM_PROMPT } from "@/lib/ai/prompts";
 import { calculatorTool, searchTool, weatherTool } from "@/lib/ai/tools";
+import { rateLimiter } from "@/lib/rate-limit";
 import { chatRequestSchema, sentimentSchema } from "@/types/chat";
 import { convertToModelMessages, Output, stepCountIs, streamText } from "ai";
 import { z } from 'zod';
@@ -23,9 +24,31 @@ function parseBody(body: any) {
     return { messages, model, temperature, task };
 }
 
+async function checkRateLimit(req: Request) {
+    const ip = req.headers.get('x-forward-for') ?? 'anonymous';
+    const { success, limit, reset, remaining } = await rateLimiter.limit(ip);
+
+    if(!success) {
+        return new Response('Rate limit exceeded', {
+            status: 429,
+            headers: {
+                'X-RateLimit-Limit': limit.toString(),
+                'X-RateLimit-Remaining': remaining.toString(),
+                'X-RateLimit-Reset': reset.toString(),
+            }
+        });
+    }
+
+    return null;
+}
 
 export async function POST(req: Request) {
     try {
+        const rateCheck = await checkRateLimit(req);
+        if(rateCheck != null) {
+            return rateCheck;
+        }
+
         const body = await req.json();
         const { messages, model, temperature, task } = parseBody(body);
 
